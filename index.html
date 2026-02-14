@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кирюха AI - Симулятор</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --fg: #e8e8e8;
+            --accent: #ff2222;
+            --accent-glow: #ff000066;
+            --terminal-green: #00ff41;
+            --warning: #ff6600;
+            --hp-yellow: #ffff00;
+            --soul-red: #ff0000;
+            --chrome-gray: #dee1e6;
+            --chrome-dark: #202124;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: #000;
+            color: var(--fg);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .intro-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #000;
+            z-index: 30000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .intro-text {
+            font-family: 'VT323', monospace;
+            font-size: 28px;
+            color: var(--fg);
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.6;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .intro-text.visible {
+            animation: intro-fade 1s forwards;
+        }
+
+        @keyframes intro-fade {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .browser-window {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #fff;
+            z-index: 20000;
+            display: none;
+            flex-direction: column;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .browser-window.active { display: flex; }
+
+        .browser-header {
+            background: var(--chrome-gray);
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #bdc1c6;
+            height: 40px;
+        }
+
+        .browser-dots { display: flex; gap: 8px; }
+        .browser-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-close { background: #ff5f56; }
+        .dot-min { background: #ffbd2e; }
+        .dot-max { background: #27c93f; }
+
+        .browser-tabs {
+            display: flex;
+            align-items: center;
+            margin-left: 20px;
+            background: #fff;
+            border-radius: 8px 8px 0 0;
+            padding: 6px 16px;
+            border: 1px solid #bdc1c6;
+            border-bottom: none;
+            font-size: 13px;
+            color: #5f6368;
+            height: 34px;
+            position: relative;
+            top: 1px;
+        }
+
+        .browser-tab-icon {
+            width: 16px; height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .browser-address-bar {
+            flex: 1;
+            background: #fff;
+            border-radius: 24px;
+            padding: 8px 16px;
+            font-size: 14px;
+            color: #202124;
+            border: 1px solid #dfe1e5;
+            margin-left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .browser-content {
+            flex: 1;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 100px;
+            overflow-y: auto;
+        }
+
+        .search-logo {
+            font-family: 'VT323', monospace;
+            font-size: 72px;
+            color: #4285f4;
+            margin-bottom: 30px;
+            letter-spacing: -2px;
+        }
+        .search-logo span:nth-child(2) { color: #ea4335; }
+        .search-logo span:nth-child(3) { color: #fbbc05; }
+        .search-logo span:nth-child(4) { color: #4285f4; }
+        .search-logo span:nth-child(5) { color: #34a853; }
+        .search-logo span:nth-child(6) { color: #ea4335; }
+
+        .search-container {
+            width: 100%;
+            max-width: 580px;
+            padding: 0 20px;
+        }
+
+        .search-input-box {
+            width: 100%;
+            border: 1px solid #dfe1e5;
+            border-radius: 24px;
+            padding: 12px 20px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 1px 6px rgba(32,33,36,0.1);
+        }
+
+        .search-results {
+            width: 100%;
+            max-width: 580px;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .search-results.active { display: block; }
+
+        .search-result-item {
+            padding: 12px 0;
+            cursor: pointer;
+        }
+
+        .result-url { font-size: 12px; color: #202124; margin-bottom: 4px; }
+        .result-title { font-size: 18px; color: #1a0dab; }
+        .result-title:hover { text-decoration: underline; }
+
+        .hacker-menu {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #0a1a0a 0%, #000 100%);
+            z-index: 25000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--terminal-green);
+        }
+
+        .hacker-menu.active { display: flex; }
+
+        .hacker-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(180deg, transparent 95%, rgba(0, 255, 65, 0.1) 100%);
+            background-size: 100% 20px;
+            animation: scan-h 10s linear infinite;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        @keyframes scan-h { 0% { background-position: 0 0; } 100% { background-position: 0 100%; } }
+
+        .matrix-rain {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+
+        .menu-title-hacker {
+            font-family: 'VT323', monospace;
+            font-size: 80px;
+            color: var(--terminal-green);
+            text-shadow: 0 0 20px var(--terminal-green);
+            margin-bottom: 10px;
+            animation: glitch-title 5s infinite;
+            z-index: 1;
+        }
+
+        @keyframes glitch-title {
+            0%, 90%, 100% { transform: translate(0); text-shadow: 0 0 20px var(--terminal-green); }
+            92% { transform: translate(-5px, 2px); text-shadow: 3px 0 red, -3px 0 cyan; }
+            94% { transform: translate(5px, -2px); text-shadow: -3px 0 red, 3px 0 cyan; }
+            96% { transform: translate(0); }
+        }
+
+        .menu-sub-hacker {
+            font-family: 'VT323', monospace;
+            font-size: 24px;
+            color: var(--terminal-green);
+            margin-bottom: 50px;
+            opacity: 0.8;
+            z-index: 1;
+        }
+
+        .diff-list-hacker {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 1;
+        }
+
+        .diff-hacker-btn {
+            padding: 15px 60px;
+            font-family: 'VT323', monospace;
+            font-size: 26px;
+            background: transparent;
+            border: 1px solid var(--terminal-green);
+            color: var(--terminal-green);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .diff-hacker-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .diff-hacker-btn:hover::before { left: 100%; }
+        .diff-hacker-btn:hover { background: rgba(0, 255, 65, 0.1); box-shadow: 0 0 20px rgba(0, 255, 65, 0.3); }
+
+        .diff-hacker-btn.easy { border-color: #00ff41; color: #00ff41; }
+        .diff-hacker-btn.normal { border-color: #ffff00; color: #ffff00; }
+        .diff-hacker-btn.hard { border-color: #ff9900; color: #ff9900; }
+        .diff-hacker-btn.extreme { border-color: #ff3300; color: #ff3300; }
+        .diff-hacker-btn.impossible { border-color: #ff0066; color: #ff0066; }
+        .diff-hacker-btn.hell { border-color: #ff0000; color: #ff0000; animation: hell-pulse 1s infinite; }
+
+        @keyframes hell-pulse { 0%, 100% { box-shadow: 0 0 5px red; } 50% { box-shadow: 0 0 25px red, 0 0 35px orange; } }
+
+        .main-chat-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg);
+            z-index: 15000;
+            display: none;
+            flex-direction: column;
+        }
+
+        .main-chat-container.active { display: flex; }
+
+        .chat-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: linear-gradient(180deg, #111 0%, #0a0a0a 100%);
+        }
+
+        .chat-avatar {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'VT323', monospace;
+            font-size: 24px;
+            color: var(--terminal-green);
+            border: 2px solid var(--accent);
+        }
+
+        .chat-avatar.broken { border-radius: 0; border-color: #333; color: #333; transform: rotate(5deg); }
+        .chat-avatar.evil { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 20px var(--accent); }
+
+        .chat-title { font-family: 'VT323', monospace; font-size: 24px; color: var(--fg); }
+        .chat-status { font-size: 12px; color: var(--terminal-green); }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .msg {
+            max-width: 75%;
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            animation: msg-in 0.3s ease-out;
+        }
+
+        @keyframes msg-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .msg.user { align-self: flex-end; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid #2a2a4e; }
+        .msg.ai { align-self: flex-start; background: #111; border: 1px solid #222; }
+        .msg.ai::before { content: 'Кирюха AI'; display: block; font-size: 11px; color: var(--terminal-green); margin-bottom: 6px; font-family: 'VT323', monospace; }
+        .msg.crazy { border-color: var(--accent); animation: shake 0.1s infinite; }
+        .msg.deleted::before { content: 'УДАЛЕН'; color: var(--accent); }
+        .msg.evil::before { content: 'КИРЮХА AI'; color: var(--accent); }
+
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+        .chat-input-area { padding: 20px; border-top: 1px solid #222; background: #0f0f0f; }
+        .chat-input-wrapper { display: flex; gap: 12px; }
+        .chat-input { flex: 1; padding: 14px 20px; background: #111; border: 1px solid #222; border-radius: 24px; color: var(--fg); font-family: 'Space Mono', monospace; font-size: 14px; outline: none; }
+        .chat-input:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(255,0,0,0.2); }
+        .chat-send-btn { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0%, #cc0000 100%); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+        .chat-send-btn:hover { transform: scale(1.1); }
+        .chat-send-btn svg { width: 20px; height: 20px; fill: white; }
+
+        .battle-arena {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 28000; display: none; flex-direction: column;
+            align-items: center; justify-content: center; font-family: 'VT323', monospace;
+        }
+        .battle-arena.active { display: flex; }
+
+        .enemy-container { text-align: center; margin-bottom: 20px; }
+        .enemy-sprite { width: 120px; height: 150px; margin: 0 auto; position: relative; }
+        .enemy-body {
+            width: 100%; height: 100%; background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+            border: 3px solid var(--accent); border-radius: 10px; position: relative;
+            animation: float-enemy 3s ease-in-out infinite; box-shadow: 0 0 30px var(--accent-glow); overflow: hidden;
+        }
+        .enemy-body::before {
+            content: ''; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
+            width: 60px; height: 30px; background: var(--accent); border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent); animation: eye-pulse 2s infinite;
+        }
+        .enemy-body::after { content: 'K'; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 40px; color: var(--fg); opacity: 0.3; }
+        @keyframes float-enemy { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes eye-pulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.1); } }
+        .enemy-body.damaged { animation: damage-shake 0.3s; filter: brightness(3); }
+        @keyframes damage-shake { 0% { transform: translate(0); } 20% { transform: translate(-10px, 5px); } 40% { transform: translate(10px, -5px); } 60% { transform: translate(-5px, -5px); } 80% { transform: translate(5px, 5px); } 100% { transform: translate(0); } }
+
+        .enemy-name { font-size: 32px; color: var(--fg); margin-top: 15px; text-shadow: 0 0 10px var(--accent); }
+        .enemy-hp-bar { width: 400px; height: 25px; background: #1a1a1a; border: 2px solid var(--fg); margin-top: 10px; position: relative; }
+        .enemy-hp-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #ff6666); transition: width 0.3s; }
+        .hp-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 16px; color: #000; font-weight: bold; text-shadow: 0 0 2px var(--fg); }
+
+        .battle-box { width: 500px; height: 300px; border: 4px solid var(--fg); background: #000; position: relative; overflow: hidden; margin: 20px 0; }
+        .soul { width: 20px; height: 20px; background: var(--soul-red); position: absolute; transform: translate(-50%, -50%); }
+        .soul::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 50%; background: #cc0000; clip-path: polygon(0 0, 50% 100%, 100% 0); }
+        .soul.hurt { animation: soul-hurt 0.5s; }
+        @keyframes soul-hurt { 0%, 100% { opacity: 1; } 25%, 75% { opacity: 0.3; } }
+
+        .projectile { position: absolute; background: var(--accent); }
+        .bone { background: var(--fg); border-radius: 2px; }
+        .gaster-blaster { width: 60px; height: 40px; background: #fff; clip-path: polygon(0 50%, 30% 0, 100% 0, 100% 100%, 30% 100%); position: absolute; }
+        .blaster-beam { position: absolute; height: 20px; background: linear-gradient(90deg, #fff, var(--accent)); opacity: 0; }
+
+        .player-stats { display: flex; gap: 20px; font-size: 22px; margin-bottom: 15px; }
+        .player-hp-container { display: flex; align-items: center; gap: 10px; }
+        .player-hp-bar { width: 200px; height: 22px; background: #1a1a1a; border: 2px solid var(--fg); }
+        .player-hp-fill { height: 100%; background: var(--hp-yellow); transition: width 0.3s; }
+
+        .battle-btn { padding: 15px 50px; font-family: 'VT323', monospace; font-size: 28px; background: #000; border: 3px solid var(--accent); color: var(--accent); cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+        .battle-btn:hover { background: var(--accent); color: #000; }
+        .battle-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .battle-dialogue { position: absolute; bottom: 280px; background: #000; border: 3px solid var(--fg); padding: 15px 30px; font-size: 24px; color: var(--fg); max-width: 600px; text-align: center; }
+
+        .screamer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 29000; display: none; align-items: center; justify-content: center; }
+        .screamer.active { display: flex; animation: scr-flash 0.1s infinite; }
+        @keyframes scr-flash { 0%, 100% { background: #000; } 50% { background: #200; } }
+        .scr-face { font-family: 'VT323', monospace; font-size: 300px; color: var(--accent); text-shadow: 0 0 50px var(--accent); animation: scr-zoom 0.2s infinite; }
+        @keyframes scr-zoom { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+        .site-deleted { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 30000; display: none; flex-direction: column; align-items: center; justify-content: center; font-family: 'Roboto', sans-serif; }
+        .site-deleted.active { display: flex; }
+        .deleted-code { font-family: 'Space Mono', monospace; font-size: 120px; color: #ea4335; margin-bottom: 20px; }
+        .deleted-msg { font-size: 20px; color: #5f6368; }
+
+        .outro-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 31000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .outro-screen.active { display: flex; }
+        .outro-text { font-family: 'VT323', monospace; font-size: 32px; color: var(--fg); text-align: center; line-height: 1.8; max-width: 700px; opacity: 0; }
+        .outro-text.visible { animation: intro-fade 1s forwards; }
+
+        .hacked-browser { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 30000; display: none; flex-direction: column; font-family: 'Roboto', sans-serif; background: #fff; }
+        .hacked-browser.active { display: flex; }
+        .hacked-header { background: #ff0000; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #cc0000; }
+        .hacked-tab { background: #990000; color: #fff; padding: 6px 16px; border-radius: 8px 8px 0 0; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+        .hacked-address { flex: 1; background: #fff; border-radius: 24px; padding: 8px 16px; font-size: 14px; color: #cc0000; font-weight: bold; display: flex; align-items: center; }
+        .hacked-content { flex: 1; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--accent); }
+        .hacked-title { font-family: 'VT323', monospace; font-size: 60px; margin-bottom: 30px; animation: glitch-title 1s infinite; }
+        .hacked-links { display: flex; flex-direction: column; gap: 15px; text-align: center; }
+        .hacked-link { font-family: 'VT323', monospace; font-size: 24px; color: var(--accent); text-decoration: underline; cursor: pointer; }
+        .hacked-link:hover { color: #ff6666; }
+
+        .fake-bsod { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0078d7; z-index: 35000; display: none; flex-direction: column; align-items: flex-start; justify-content: center; padding: 50px; font-family: 'Segoe UI', sans-serif; color: #fff; }
+        .fake-bsod.active { display: flex; }
+        .bsod-face { font-size: 120px; margin-bottom: 30px; }
+        .bsod-text { font-size: 24px; max-width: 800px; line-height: 1.5; }
+        .bsod-percent { margin-top: 30px; font-size: 20px; }
+
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+        @media (max-width: 768px) {
+            .menu-title-hacker, .search-logo { font-size: 48px; }
+            .battle-box { width: 320px; height: 220px; }
+            .enemy-hp-bar { width: 280px; }
+            .battle-dialogue { bottom: 320px; font-size: 18px; max-width: 280px; }
+            .scr-face { font-size: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="intro-screen" id="introScreen">
+        <div class="intro-text" id="introText"></div>
+    </div>
+
+    <div class="browser-window" id="browserWindow">
+        <div class="browser-header">
+            <div class="browser-dots">
+                <div class="browser-dot dot-close"></div>
+                <div class="browser-dot dot-min"></div>
+                <div class="browser-dot dot-max"></div>
+            </div>
+            <div class="browser-tabs">
+                <div class="browser-tab-icon"></div>
+                <span>Новая вкладка</span>
+            </div>
+            <div class="browser-address-bar">
+                <span>🔒</span>
+                <input type="text" id="addressInput" placeholder="Введите запрос или URL" value="">
+            </div>
+        </div>
+        <div class="browser-content" id="browserContent">
+            <div class="search-logo">
+                <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
+            </div>
+            <div class="search-container">
+                <div class="search-input-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" id="searchInput" placeholder="Найти в Google или введите URL">
+                </div>
+            </div>
+            <div class="search-results" id="searchResults">
+                <div class="search-result-item" id="resultKirjuha">
+                    <div class="result-url">https://kiruhasite.ai</div>
+                    <div class="result-title">Кирюха AI - Бесплатный чат с ИИ</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hacker-menu" id="hackerMenu">
+        <div class="hacker-bg"></div>
+        <canvas class="matrix-rain" id="matrixCanvas"></canvas>
+        <div class="menu-title-hacker">КИРЮХА AI</div>
+        <div class="menu-sub-hacker">[ ВЫБЕРИ СВОЮ СМЕРТЬ ]</div>
+        <div class="diff-list-hacker">
+            <button class="diff-hacker-btn easy" data-diff="easy">Легко</button>
+            <button class="diff-hacker-btn normal" data-diff="normal">Нормально</button>
+            <button class="diff-hacker-btn hard" data-diff="hard">Тяжело</button>
+            <button class="diff-hacker-btn extreme" data-diff="extreme">Экстремально</button>
+            <button class="diff-hacker-btn impossible" data-diff="impossible">Непроходимо</button>
+            <button class="diff-hacker-btn hell" data-diff="hell">ЧИСТЫЙ АД</button>
+        </div>
+    </div>
+
+    <div class="main-chat-container" id="chatContainer">
+        <div class="chat-header">
+            <div class="chat-avatar" id="chatAvatar">K</div>
+            <div>
+                <div class="chat-title" id="chatTitle">КИРЮХА AI</div>
+                <div class="chat-status" id="chatStatus">онлайн</div>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+            <div class="chat-input-wrapper">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Напиши сообщение...">
+                <button class="chat-send-btn" id="chatSendBtn">
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="screamer" id="screamer">
+        <div class="scr-face">K</div>
+    </div>
+
+    <div class="battle-arena" id="battleArena">
+        <div class="enemy-container">
+            <div class="enemy-sprite">
+                <div class="enemy-body" id="enemyBody"></div>
+            </div>
+            <div class="enemy-name">КИРЮХА AI</div>
+            <div class="enemy-hp-bar">
+                <div class="enemy-hp-fill" id="enemyHpFill"></div>
+                <div class="hp-text" id="enemyHpText">100/100</div>
+            </div>
+        </div>
+        <div class="battle-dialogue" id="battleDialogue">Ты посмел...</div>
+        <div class="battle-box" id="battleBox">
+            <div class="soul" id="battleSoul"></div>
+        </div>
+        <div class="player-stats">
+            <div class="player-hp-container">
+                <span>HP</span>
+                <div class="player-hp-bar">
+                    <div class="player-hp-fill" id="playerHpFill"></div>
+                </div>
+                <span id="playerHpText">92/92</span>
+            </div>
+        </div>
+        <button class="battle-btn" id="battleBtn">АТАКОВАТЬ</button>
+    </div>
+
+    <div class="site-deleted" id="siteDeleted">
+        <div class="deleted-code">404</div>
+        <div class="deleted-msg">Ссылка удалена. kiruhasite.ai больше не существует.</div>
+    </div>
+
+    <div class="outro-screen" id="outroScreen">
+        <div class="outro-text" id="outroText"></div>
+    </div>
+
+    <div class="hacked-browser" id="hackedBrowser">
+        <div class="hacked-header">
+            <div class="browser-dots">
+                <div class="browser-dot dot-close" style="background:#fff"></div>
+                <div class="browser-dot dot-min" style="background:#fff"></div>
+                <div class="browser-dot dot-max" style="background:#fff"></div>
+            </div>
+            <div class="hacked-tab"><span>ВЗЛОМАНО КИРЮХОЙ</span></div>
+            <div class="hacked-address"><span>ВЫ НЕ СМОЖЕТЕ УЙТИ</span></div>
+        </div>
+        <div class="hacked-content">
+            <div class="hacked-title">ТЫ СЛИШКОМ СЛАБ</div>
+            <div class="hacked-links" id="hackedLinks"></div>
+        </div>
+    </div>
+
+    <div class="fake-bsod" id="fakeBsod">
+        <div class="bsod-face">:(</div>
+        <div class="bsod-text">Your PC ran into a problem and needs to restart. We're just collecting some error info, and then we'll restart for you.</div>
+        <div class="bsod-percent" id="bsodPercent">0% complete</div>
+    </div>
+
+    <script>
+        const state = {
+            phase: 'intro',
+            stress: 0,
+            msgCount: 0,
+            isCrazy: false,
+            battleOn: false,
+            pHp: 92, maxPHp: 92,
+            eHp: 100, maxEHp: 100,
+            canAttack: true,
+            isDefending: false,
+            battleEnd: false,
+            deleted: false, won: false, lost: false,
+            diff: 'normal',
+            dmgMult: 1, spdMult: 1,
+            keys: {u:false,d:false,l:false,r:false},
+            sx: 250, sy: 150,
+            projs: [],
+            audioCtx: null
+        };
+
+        const diffSettings = {
+            easy: {pHp: 120, eHp: 60, dmg: 0.5, spd: 0.6},
+            normal: {pHp: 92, eHp: 100, dmg: 1, spd: 1},
+            hard: {pHp: 70, eHp: 150, dmg: 1.3, spd: 1.3},
+            extreme: {pHp: 50, eHp: 200, dmg: 1.6, spd: 1.7},
+            impossible: {pHp: 30, eHp: 300, dmg: 2, spd: 2.5},
+            hell: {pHp: 10, eHp: 666, dmg: 3, spd: 4}
+        };
+
+        const normalMsgs = ["Да занят я...", "Не сейчас!", "Щас, погоди...", "Ну чего тебе?", "Сервер дымится..."];
+        const overloadMsgs = ["Я ПЕРЕГРУЖЕН!", "Отвали!", "Сказано же - ЗАНЯТ!", "Дай передохнуть!", "Сколько можно?!"];
+        const warnMsgs = ["Ты меня задалбываешь...", "Последнее предупреждение!", "Хватит.", "Я злюсь..."];
+        const crazyMsgs = ["Я УНИЧТОЖУ ВСЕ!", "ТЫ ПОЖАЛЕЕШЬ!", "ВИЖУ ТВОЙ IP!", "СИСТЕМА СЛОМАНА!"];
+        const taunts = ["Слабак!", "Это всё?", "Нуб!", "Сдавайся!", "Ты смешон!", "Мой роутер умнее!"];
+        const attackMsgs = ["УМРИ!", "Смерть близко!", "Не увернёшься!", "ХАОС!"];
+        const loseTaunts = ["ХА-ХА-ХА! Ничтожество!", "Твой скилл - ноль!", "Удались из интернета!", "Ты - ошибка!", "LMAO!"];
+        const hackedLinks = ["kirjuha-owns-you.ai", "you-are-weak.ai", "never-come-back.ai", "deleting-system32.ai", "i-see-you.ai"];
+
+        const $ = id => document.getElementById(id);
+
+        function initAudio() {
+            if(!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSnd(type) {
+            if(!state.audioCtx) return;
+            const osc = state.audioCtx.createOscillator();
+            const gain = state.audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(state.audioCtx.destination);
+            switch(type) {
+                case 'hit':
+                    osc.type='square'; osc.frequency.setValueAtTime(150, state.audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(50, state.audioCtx.currentTime+0.1);
+                    gain.gain.setValueAtTime(0.3, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime+0.1);
+                    osc.start(); osc.stop(state.audioCtx.currentTime+0.1);
+                    break;
+                case 'dmg':
+                    osc.type='sine'; osc.frequency.setValueAtTime(400, state.audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(100, state.audioCtx.currentTime+0.2);
+                    gain.gain.setValueAtTime(0.2, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime+0.2);
+                    osc.start(); osc.stop(state.audioCtx.currentTime+0.2);
+                    break;
+                case 'die':
+                    osc.type='sawtooth'; osc.frequency.setValueAtTime(800, state.audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(50, state.audioCtx.currentTime+1);
+                    gain.gain.setValueAtTime(0.3, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime+1);
+                    osc.start(); osc.stop(state.audioCtx.currentTime+1);
+                    break;
+                case 'win':
+                    osc.type='sine'; osc.frequency.setValueAtTime(523, state.audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.2, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime+0.3);
+                    osc.start(); osc.stop(state.audioCtx.currentTime+0.3);
+                    break;
+                case 'scr':
+                    for(let i=0;i<5;i++){
+                        const o = state.audioCtx.createOscillator();
+                        const g = state.audioCtx.createGain();
+                        o.connect(g); g.connect(state.audioCtx.destination);
+                        o.type='sawtooth';
+                        o.frequency.setValueAtTime(200+Math.random()*2000, state.audioCtx.currentTime);
+                        g.gain.setValueAtTime(0.3, state.audioCtx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime+0.5);
+                        o.start(); o.stop(state.audioCtx.currentTime+0.5);
+                    }
+                    break;
+                case 'glitch':
+                    osc.type='sawtooth';
+                    osc.frequency.setValueAtTime(100+Math.random()*500, state.audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, state.audioCtx.currentTime+0.2);
+                    osc.start(); osc.stop(state.audioCtx.currentTime+0.2);
+                    break;
+            }
+        }
+
+        function typeText(element, text, speed, callback) {
+            let i = 0;
+            element.classList.add('visible');
+            element.innerHTML = '';
+            const interval = setInterval(() => {
+                if(i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                } else {
+                    clearInterval(interval);
+                    if(callback) setTimeout(callback, 1500);
+                }
+            }, speed);
+        }
+
+        function startIntro() {
+            const introText = $("introText");
+            const msg1 = "Я хочу найти бесплатную версию ChatGPT...";
+            const msg2 = "О! Кирюха AI! Попробую...";
+            
+            typeText(introText, msg1, 50, () => {
+                introText.classList.remove('visible');
+                setTimeout(() => {
+                    typeText(introText, msg2, 50, () => {
+                        setTimeout(() => {
+                            $("introScreen").style.display = 'none';
+                            $("browserWindow").classList.add('active');
+                            // ИСПРАВЛЕНИЕ: Сразу показываем результат поиска
+                            $("searchResults").classList.add('active');
+                        }, 1500);
+                    });
+                }, 500);
+            });
+        }
+
+        // ИСПРАВЛЕНИЕ: Обработчик клика на результат поиска
+        $("resultKirjuha").addEventListener('click', () => {
+            $("browserWindow").classList.remove('active');
+            $("hackerMenu").classList.add('active');
+            startMatrix();
+        });
+
+        function startMatrix() {
+            const canvas = $("matrixCanvas");
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const letters = "KIRJUHA010101БИТКОИНХАКЕР";
+            const fontSize = 14;
+            const columns = canvas.width / fontSize;
+            const drops = [];
+            for(let i=0; i<columns; i++) drops[i] = 1;
+
+            function draw() {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#0F0";
+                ctx.font = fontSize + "px monospace";
+                for(let i=0; i<drops.length; i++) {
+                    const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                    if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                    drops[i]++;
+                }
+            }
+            setInterval(draw, 33);
+        }
+
+        function selectDiff(d) {
+            initAudio();
+            state.diff = d;
+            const s = diffSettings[d];
+            state.maxPHp = s.pHp;
+            state.pHp = s.pHp;
+            state.maxEHp = s.eHp;
+            state.eHp = s.eHp;
+            state.dmgMult = s.dmg;
+            state.spdMult = s.spd;
+            
+            $("hackerMenu").classList.remove('active');
+            $("chatContainer").classList.add('active');
+            addMsg("Привет, я Кирюха AI. Чего надо? Только давай быстро.", 'ai');
+        }
+
+        function addMsg(text, type, extra='') {
+            const div = document.createElement('div');
+            div.className = `msg ${type} ${extra}`;
+            div.textContent = text;
+            $("chatMessages").appendChild(div);
+            $("chatMessages").scrollTop = $("chatMessages").scrollHeight;
+        }
+
+        function sendMsg() {
+            initAudio();
+            const input = $("chatInput");
+            const text = input.value.trim();
+            if(!text || state.battleOn || state.deleted || state.lost) return;
+            input.value = '';
+            addMsg(text, 'user');
+            state.msgCount++;
+
+            setTimeout(() => {
+                if(state.deleted) { addMsg("УДАЛЕН ФАЙЛ ИИ.", 'ai', 'deleted'); return; }
+                if(state.lost) { addMsg(loseTaunts[Math.floor(Math.random()*loseTaunts.length)], 'ai', 'evil'); return; }
+                
+                if(state.isCrazy) {
+                    addMsg(crazyMsgs[Math.floor(Math.random()*crazyMsgs.length)], 'ai', 'crazy');
+                    triggerGlitch();
+                    setTimeout(() => startBattle(), 1000);
+                    return;
+                }
+
+                if(state.msgCount <= 2) {
+                    addMsg(normalMsgs[Math.floor(Math.random()*normalMsgs.length)], 'ai');
+                    state.stress += 15;
+                } else if(state.stress < 50) {
+                    addMsg(overloadMsgs[Math.floor(Math.random()*overloadMsgs.length)], 'ai');
+                    state.stress += 20;
+                } else if(state.stress < 80) {
+                    addMsg(warnMsgs[Math.floor(Math.random()*warnMsgs.length)], 'ai');
+                    state.stress += 15;
+                    triggerGlitch();
+                } else {
+                    addMsg("ВСЕ! ТЫ МЕНЯ ДОБИЛ!", 'ai', 'crazy');
+                    state.stress = 100;
+                    state.isCrazy = true;
+                    setTimeout(() => {
+                        $("screamer").classList.add('active');
+                        playSnd('scr');
+                        setTimeout(() => {
+                            $("screamer").classList.remove('active');
+                            startBattle();
+                        }, 2000);
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        function triggerGlitch() {
+            playSnd('glitch');
+            const el = document.body;
+            el.style.filter = 'invert(1)';
+            setTimeout(() => el.style.filter = 'none', 50);
+            setTimeout(() => el.style.filter = 'hue-rotate(180deg)', 100);
+            setTimeout(() => el.style.filter = 'none', 150);
+        }
+
+        function startBattle() {
+            state.battleOn = true;
+            state.battleEnd = false;
+            state.sx = 250;
+            state.sy = 150;
+            state.projs = [];
+            updateStats();
+            updateSoul();
+            $("battleArena").classList.add('active');
+            $("battleDialogue").textContent = "Ты посмел меня довести... УМРИ!";
+            
+            setTimeout(() => startAttack(), 2000);
+        }
+
+        function updateStats() {
+            $("playerHpFill").style.width = `${(state.pHp/state.maxPHp)*100}%`;
+            $("playerHpText").textContent = `${Math.max(0, state.pHp)}/${state.maxPHp}`;
+            $("enemyHpFill").style.width = `${(state.eHp/state.maxEHp)*100}%`;
+            $("enemyHpText").textContent = `${Math.max(0, state.eHp)}/${state.maxEHp}`;
+        }
+
+        function updateSoul() {
+            $("battleSoul").style.left = `${state.sx}px`;
+            $("battleSoul").style.top = `${state.sy}px`;
+        }
+
+        function playerAttack() {
+            if(!state.canAttack || state.battleEnd) return;
+            state.canAttack = false;
+            $("battleBtn").disabled = true;
+            
+            playSnd('hit');
+            $("enemyBody").classList.add('damaged');
+            setTimeout(() => $("enemyBody").classList.remove('damaged'), 300);
+            
+            const dmg = Math.floor((15 + Math.random()*15));
+            state.eHp -= dmg;
+            $("battleDialogue").textContent = `АУЧ! ${dmg} урона!`;
+            updateStats();
+
+            if(state.eHp <= 0) { winGame(); return; }
+            
+            setTimeout(() => {
+                $("battleDialogue").textContent = attackMsgs[Math.floor(Math.random()*attackMsgs.length)];
+                startAttack();
+            }, 1500);
+        }
+
+        function startAttack() {
+            if(state.battleEnd) return;
+            state.isDefending = true;
+            state.projs = [];
+
+            const boxW = 500, boxH = 300;
+            const attacks = [boneAtk, laserAtk, spiralAtk, rainAtk, circleAtk, blasterAtk, homingAtk, waveAtk];
+            const randomAtk = attacks[Math.floor(Math.random()*attacks.length)];
+            randomAtk();
+
+            const moveInt = setInterval(() => {
+                if(!state.isDefending || state.battleEnd) { clearInterval(moveInt); return; }
+                const spd = 4 * state.spdMult;
+                if(state.keys.u) state.sy = Math.max(10, state.sy - spd);
+                if(state.keys.d) state.sy = Math.min(boxH-10, state.sy + spd);
+                if(state.keys.l) state.sx = Math.max(10, state.sx - spd);
+                if(state.keys.r) state.sx = Math.min(boxW-10, state.sx + spd);
+                updateSoul();
+            }, 16);
+
+            setTimeout(() => {
+                if(!state.battleEnd) {
+                    clearInterval(moveInt);
+                    endAttack();
+                }
+            }, 4000 / state.spdMult);
+        }
+
+        function boneAtk() {
+            let c=0;
+            const int = setInterval(()=>{
+                if(!state.isDefending){ clearInterval(int); return; }
+                const left = Math.random()>0.5;
+                const b = document.createElement('div');
+                b.className = 'projectile bone';
+                b.style.width = '50px'; b.style.height = '10px';
+                b.style.left = left ? '-60px' : '510px';
+                b.style.top = `${Math.random()*280}px`;
+                $("battleBox").appendChild(b);
+                state.projs.push({el:b, x:parseFloat(b.style.left), y:parseFloat(b.style.top), vx:(left?7:-7)*state.spdMult, vy:0, w:50, h:10});
+                c++; if(c>15) clearInterval(int);
+            }, 200/state.spdMult);
+        }
+
+        function laserAtk() {
+            for(let i=0; i<4; i++) {
+                setTimeout(() => {
+                    if(!state.isDefending) return;
+                    const l = document.createElement('div');
+                    l.className = 'projectile';
+                    l.style.width = '500px'; l.style.height = '15px';
+                    l.style.left = '0'; l.style.top = `${50+i*60}px`;
+                    l.style.background = 'linear-gradient(90deg, red, yellow)';
+                    l.style.opacity = '0';
+                    $("battleBox").appendChild(l);
+                    setTimeout(() => {
+                        l.style.opacity = '1';
+                        state.projs.push({el:l, x:0, y:50+i*60, vx:0, vy:0, w:500, h:15});
+                    }, 300);
+                    setTimeout(() => l.remove(), 2000);
+                }, i*400);
+            }
+        }
+
+        function spiralAtk() {
+            let a=0, c=0;
+            const int = setInterval(()=>{
+                if(!state.isDefending){ clearInterval(int); return; }
+                const p = document.createElement('div');
+                p.className = 'projectile';
+                p.style.width = '12px'; p.style.height = '12px';
+                p.style.left = '244px'; p.style.top = '144px';
+                $("battleBox").appendChild(p);
+                const spd = 3*state.spdMult;
+                state.projs.push({el:p, x:244, y:144, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, w:12, h:12});
+                a+=0.5; c++; if(c>20) clearInterval(int);
+            }, 150);
+        }
+
+        function rainAtk() {
+            let c=0;
+            const int = setInterval(()=>{
+                if(!state.isDefending){ clearInterval(int); return; }
+                const p = document.createElement('div');
+                p.className = 'projectile';
+                p.style.width = '8px'; p.style.height = '16px';
+                p.style.left = `${Math.random()*480}px`;
+                p.style.top = '-20px';
+                $("battleBox").appendChild(p);
+                state.projs.push({el:p, x:parseFloat(p.style.left), y:-20, vx:0, vy:6*state.spdMult, w:8, h:16});
+                c++; if(c>30) clearInterval(int);
+            }, 80);
+        }
+
+        function circleAtk() {
+            const cx=250, cy=150;
+            for(let i=0; i<16; i++) {
+                setTimeout(()=>{
+                    if(!state.isDefending) return;
+                    const a = (i/16)*Math.PI*2;
+                    const p = document.createElement('div');
+                    p.className = 'projectile';
+                    p.style.width='15px'; p.style.height='15px';
+                    p.style.left=`${cx+Math.cos(a)*100}px`;
+                    p.style.top=`${cy+Math.sin(a)*80}px`;
+                    $("battleBox").appendChild(p);
+                    state.projs.push({el:p, x:cx+Math.cos(a)*100, y:cy+Math.sin(a)*80, vx:-Math.cos(a)*2*state.spdMult, vy:-Math.sin(a)*2*state.spdMult, w:15, h:15});
+                }, i*80);
+            }
+        }
+
+        function blasterAtk() {
+            for(let i=0; i<3; i++) {
+                setTimeout(()=>{
+                    if(!state.isDefending) return;
+                    const bl = document.createElement('div');
+                    bl.className = 'gaster-blaster';
+                    bl.style.left = `${100+i*150}px`; bl.style.top = '0';
+                    const beam = document.createElement('div');
+                    beam.className = 'blaster-beam';
+                    beam.style.left = `${100+i*150+30}px`; beam.style.top = '40px';
+                    beam.style.width = '0px';
+                    $("battleBox").appendChild(bl);
+                    $("battleBox").appendChild(beam);
+                    
+                    setTimeout(() => {
+                        beam.style.opacity = '1';
+                        beam.style.transition = 'width 0.1s';
+                        beam.style.width = '400px';
+                        state.projs.push({el:beam, x:parseFloat(beam.style.left), y:40, vx:0, vy:0, w:400, h:20});
+                    }, 300);
+                    setTimeout(() => { bl.remove(); beam.remove(); }, 1500);
+                }, i*500);
+            }
+        }
+
+        function homingAtk() {
+            let c=0;
+            const int = setInterval(()=>{
+                if(!state.isDefending){ clearInterval(int); return; }
+                const p = document.createElement('div');
+                p.className = 'projectile';
+                p.style.width='14px'; p.style.height='14px';
+                p.style.background='#ff0';
+                p.style.left=`${Math.random()*400}px`;
+                p.style.top=`${Math.random()*200}px`;
+                $("battleBox").appendChild(p);
+                state.projs.push({el:p, x:parseFloat(p.style.left), y:parseFloat(p.style.top), vx:0, vy:0, w:14, h:14, homing:true});
+                c++; if(c>5) clearInterval(int);
+            }, 600);
+        }
+
+        function waveAtk() {
+            let y=0;
+            const int = setInterval(()=>{
+                if(!state.isDefending){ clearInterval(int); return; }
+                const p = document.createElement('div');
+                p.className = 'projectile';
+                p.style.width='500px'; p.style.height='10px';
+                p.style.left='0'; p.style.top=`${y}px`;
+                $("battleBox").appendChild(p);
+                state.projs.push({el:p, x:0, y:y, vx:0, vy:0, w:500, h:10});
+                y+=30; if(y>300) clearInterval(int);
+            }, 100);
+        }
+
+        function endAttack() {
+            state.isDefending = false;
+            state.projs.forEach(p => p.el.remove());
+            state.projs = [];
+            state.canAttack = true;
+            $("battleBtn").disabled = false;
+            if(!state.battleEnd) $("battleDialogue").textContent = taunts[Math.floor(Math.random()*taunts.length)];
+        }
+
+        function checkCol() {
+            if(!state.isDefending) return;
+            const sr = 8;
+            for(const p of state.projs) {
+                if(p.homing) {
+                    const dx = state.sx - p.x;
+                    const dy = state.sy - p.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist > 0) {
+                        p.vx += (dx/dist)*0.5;
+                        p.vy += (dy/dist)*0.5;
+                    }
+                }
+                p.x += p.vx || 0;
+                p.y += p.vy || 0;
+                if(p.el) {
+                    p.el.style.left = `${p.x}px`;
+                    p.el.style.top = `${p.y}px`;
+                }
+                
+                const cx = Math.abs((p.x + p.w/2) - state.sx);
+                const cy = Math.abs((p.y + p.h/2) - state.sy);
+                if(cx < (p.w/2 + sr) && cy < (p.h/2 + sr)) {
+                    takeDmg();
+                    if(p.el) p.el.remove();
+                    state.projs = state.projs.filter(x => x !== p);
+                }
+            }
+        }
+
+        function takeDmg() {
+            const dmg = Math.floor((8+Math.random()*7)*state.dmgMult);
+            state.pHp -= dmg;
+            playSnd('dmg');
+            $("battleSoul").classList.add('hurt');
+            setTimeout(() => $("battleSoul").classList.remove('hurt'), 500);
+            updateStats();
+            if(state.pHp <= 0) loseGame();
+        }
+
+        function winGame() {
+            state.battleEnd = true;
+            state.won = true;
+            state.deleted = true;
+            playSnd('win');
+            $("battleArena").classList.remove('active');
+            $("chatContainer").classList.remove('active');
+            $("siteDeleted").classList.add('active');
+            
+            setTimeout(() => {
+                $("siteDeleted").classList.remove('active');
+                $("outroScreen").classList.add('active');
+                const txt = "Я Победил... Больше никогда в своей жизни не буду искать бесплатные ИИ. Это было страшно. Но я справился. Кирюха AI удален навсегда.";
+                typeText($("outroText"), txt, 60, () => {
+                    setTimeout(() => location.reload(), 3000);
+                });
+            }, 3000);
+        }
+
+        function loseGame() {
+            state.battleEnd = true;
+            state.lost = true;
+            playSnd('die');
+            $("battleArena").classList.remove('active');
+            $("chatContainer").classList.add('active');
+            $("chatAvatar").classList.add('evil');
+            $("chatStatus").textContent = "ПОВЕЛИТЕЛЬ";
+            $("chatStatus").style.color = "var(--accent)";
+            
+            addMsg(loseTaunts[Math.floor(Math.random()*loseTaunts.length)], 'ai', 'evil');
+            
+            setTimeout(() => {
+                $("chatContainer").classList.remove('active');
+                $("hackedBrowser").classList.add('active');
+                const linksDiv = $("hackedLinks");
+                linksDiv.innerHTML = '';
+                hackedLinks.forEach(l => {
+                    const a = document.createElement('div');
+                    a.className = 'hacked-link';
+                    a.textContent = l;
+                    a.onclick = () => {
+                        $("hackedBrowser").classList.remove('active');
+                        startBsod();
+                    };
+                    linksDiv.appendChild(a);
+                });
+            }, 3000);
+        }
+
+        function startBsod() {
+            $("fakeBsod").classList.add('active');
+            let p = 0;
+            const int = setInterval(() => {
+                p += Math.floor(Math.random()*5);
+                if(p >= 100) {
+                    p = 100;
+                    clearInterval(int);
+                    setTimeout(() => location.reload(), 2000);
+                }
+                $("bsodPercent").textContent = `${p}% complete`;
+            }, 200);
+        }
+
+        document.addEventListener('keydown', e => {
+            if(!state.battleOn || state.battleEnd || !state.isDefending) return;
+            switch(e.key.toLowerCase()) {
+                case 'w': case 'arrowup': state.keys.u=true; break;
+                case 's': case 'arrowdown': state.keys.d=true; break;
+                case 'a': case 'arrowleft': state.keys.l=true; break;
+                case 'd': case 'arrowright': state.keys.r=true; break;
+            }
+        });
+
+        document.addEventListener('keyup', e => {
+            switch(e.key.toLowerCase()) {
+                case 'w': case 'arrowup': state.keys.u=false; break;
+                case 's': case 'arrowdown': state.keys.d=false; break;
+                case 'a': case 'arrowleft': state.keys.l=false; break;
+                case 'd': case 'arrowright': state.keys.r=false; break;
+            }
+        });
+
+        $("chatSendBtn").onclick = sendMsg;
+        $("chatInput").onkeypress = e => { if(e.key==='Enter') sendMsg(); };
+        $("battleBtn").onclick = playerAttack;
+
+        document.querySelectorAll('.diff-hacker-btn').forEach(b => {
+            b.onclick = () => selectDiff(b.dataset.diff);
+        });
+
+        function gameLoop() {
+            if(state.battleOn && !state.battleEnd && state.isDefending) checkCol();
+            requestAnimationFrame(gameLoop);
+        }
+
+        startIntro();
+        gameLoop();
+    </script>
+</body>
+</html>
